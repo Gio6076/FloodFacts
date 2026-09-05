@@ -41,23 +41,24 @@
                 <div class="story-form card shadow-sm p-4">
                     <h2 class="text-primary text-center mb-4"><i class="fas fa-pencil-alt"></i> Submit Your Story</h2>
                     <p class="text-center text-muted mb-4">Logged in as <strong id="story-username-display">Guest</strong></p>
+                    <p class="form-text text-center">Submitted stories may be stored in Firebase and displayed as community content.</p>
                     <div class="alert alert-warning text-center py-2" id="story-login-notice" style="display:none;">
                         Please <a href="login.html" class="alert-link">log in</a> to share your story.
                     </div>
                     <form id="story-form">
                         <div class="mb-3">
                             <label for="story-location" class="form-label">Location</label>
-                            <input type="text" class="form-control" id="story-location" placeholder="City or Barangay" required>
+                            <input type="text" class="form-control" id="story-location" name="location" maxlength="100" placeholder="City or Barangay" required>
                         </div>
                         <div class="mb-3">
                             <label for="story-text" class="form-label">Your Story</label>
-                            <textarea class="form-control" id="story-text" rows="5" placeholder="Share your experience or tips..." required></textarea>
+                            <textarea class="form-control" id="story-text" name="story" rows="5" maxlength="2000" placeholder="Share your experience or tips..." required></textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Severity</label>
                             <div class="d-flex align-items-center">
                                 <div id="selected-severity" class="me-2">
-                                    <span class="severity-badge severity-moderate"><i class="fas fa-exclamation-triangle"></i> Moderate</span>
+                                    <span class="severity-badge severity-moderate"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Moderate</span>
                                 </div>
                                 <div class="dropdown">
                                     <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="severityDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -65,7 +66,7 @@
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="severityDropdown">
                                         <li><a class="dropdown-item" href="#" data-severity="critical"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Critical</a></li>
-                                        <li><a class="dropdown-item" href="#" data-severity="severe"><i class="fas fa-exclamation-triangle" style="color: #ff7f2a;" class="me-2"></i>Severe</a></li>
+                                        <li><a class="dropdown-item" href="#" data-severity="severe"><i class="fas fa-exclamation-triangle me-2" style="color: #ff7f2a;" aria-hidden="true"></i>Severe</a></li>
                                         <li><a class="dropdown-item" href="#" data-severity="moderate"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Moderate</a></li>
                                     </ul>
                                 </div>
@@ -91,9 +92,9 @@
                     <div class="col-lg-6">
                         <div class="card shadow-sm h-100">
                             <div class="card-body">
-                                <h3 class="card-title text-primary"><i class="fas fa-first-aid"></i> Health & Safety</h3>
+                                <h3 class="card-title text-primary"><i class="fas fa-first-aid" aria-hidden="true"></i> Health &amp; Safety</h3>
                                 <ul class="list-unstyled mb-0">
-                                    <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Avoid contact with flood water; disinfect cuts immediately.</li>
+                                    <li class="mb-2"><i class="fas fa-check text-primary me-2" aria-hidden="true"></i>Avoid contact with flood water; disinfect cuts immediately.</li>
                                     <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Boil or treat water before drinking.</li>
                                     <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Wear protective gear when cleaning debris and mud.</li>
                                     <li><i class="fas fa-check text-primary me-2"></i>Monitor local health advisories for outbreaks.</li>
@@ -104,9 +105,9 @@
                     <div class="col-lg-6">
                         <div class="card shadow-sm h-100">
                             <div class="card-body">
-                                <h3 class="card-title text-primary"><i class="fas fa-hands-helping"></i> Recovery & Support</h3>
+                                <h3 class="card-title text-primary"><i class="fas fa-hands-helping" aria-hidden="true"></i> Recovery &amp; Support</h3>
                                 <ul class="list-unstyled mb-0">
-                                    <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Document damage with photos for insurance or assistance.</li>
+                                    <li class="mb-2"><i class="fas fa-check text-primary me-2" aria-hidden="true"></i>Document damage with photos for insurance or assistance.</li>
                                     <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Contact barangay or LGU offices for relief programs.</li>
                                     <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Disinfect surfaces with bleach solution and dispose of spoiled items.</li>
                                     <li><i class="fas fa-check text-primary me-2"></i>Lean on community groups and shelters for temporary housing.</li>

@@ -1,0 +1,92 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validUserDocument() {
+      return request.resource.data.keys().hasOnly([
+          'fullName',
+          'username',
+          'email',
+          'createdAt',
+          'quizScores',
+          'checklistProgress',
+          'stories'
+        ])
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() <= 200
+        && request.resource.data.username is string
+        && request.resource.data.username.size() <= 100
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 320
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.quizScores is list
+        && request.resource.data.checklistProgress is map
+        && request.resource.data.checklistProgress.keys().hasOnly(['before', 'during'])
+        && (!request.resource.data.checklistProgress.keys().hasAny(['before'])
+            || request.resource.data.checklistProgress.before is map)
+        && (!request.resource.data.checklistProgress.keys().hasAny(['during'])
+            || request.resource.data.checklistProgress.during is map)
+        && request.resource.data.stories is list;
+    }
+
+    function validStory() {
+      return request.resource.data.keys().hasOnly([
+          'name',
+          'location',
+          'story',
+          'severity',
+          'userId',
+          'submittedAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.location is string
+        && request.resource.data.location.size() <= 100
+        && request.resource.data.story is string
+        && request.resource.data.story.size() <= 2000
+        && request.resource.data.severity is string
+        && request.resource.data.severity in ['critical', 'severe', 'moderate']
+        && request.resource.data.userId is string
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.submittedAt is timestamp;
+    }
+
+    match /users/{uid} {
+      // User documents are private and owned by the matching Firebase user.
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validUserDocument();
+      allow update: if isOwner(uid)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                        'fullName',
+                        'username',
+                        'email',
+                        'quizScores',
+                        'checklistProgress'
+                      ])
+                    && validUserDocument();
+      allow delete: if false;
+    }
+
+    match /stories/{storyId} {
+      // Stories are intentionally readable by visitors because the application
+      // displays community stories before login. Creation requires ownership.
+      allow read: if true;
+      allow create: if signedIn() && validStory();
+      // No client update/delete or moderator role exists in this application.
+      allow update, delete: if false;
+    }
+
+    // Deny every collection/path not explicitly declared above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

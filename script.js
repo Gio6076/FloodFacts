@@ -7,6 +7,10 @@ let isSubmittingStory = false;
 const CHECKLIST_KEY_PREFIX = 'flood-checklist-';
 const STORIES_STORAGE_KEY = 'flood-stories';
 
+// Keep these storage keys stable for existing browser and Firestore data.
+// The old duplicate before-checklist IDs were inherently ambiguous; check2 and
+// check3 remain attached to their first items while renamed items use new keys.
+
 // Firebase services
 function getAuth() {
     return firebase.auth();
@@ -128,11 +132,17 @@ function displayWelcomeMessage() {
     const { loggedIn, username } = getAuthInfo();
     if (!loggedIn) {
         welcomeDiv.style.display = 'none';
-        welcomeDiv.innerHTML = '';
+        welcomeDiv.replaceChildren();
         return;
     }
     
-    welcomeDiv.innerHTML = `<p class="lead text-success"><i class="fas fa-user-check"></i> Welcome, ${username}!</p>`;
+    const message = document.createElement('p');
+    message.className = 'lead text-success';
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-user-check';
+    icon.setAttribute('aria-hidden', 'true');
+    message.append(icon, ` Welcome, ${username}!`);
+    welcomeDiv.replaceChildren(message);
     welcomeDiv.style.display = 'block';
 }
 
@@ -154,6 +164,7 @@ function initLoginLink() {
     auth.onAuthStateChanged((user) => {
         loginLink.textContent = user ? 'Logout' : 'Login';
         loginLink.href = user ? '#' : 'login.html';
+        displayWelcomeMessage();
     });
 
     loginLink.addEventListener('click', (event) => {
@@ -176,61 +187,6 @@ function initLoginForm() {
     });
 }
 
-window.handleLogin = async function handleLogin(event) {
-    event.preventDefault();
-    const auth = getAuth();
-    const db = getFirestore();
-    
-    const usernameInput = document.getElementById('username');
-    const passwordInput = document.getElementById('password');
-    
-    if (!usernameInput || !passwordInput) return;
-    
-    const email = usernameInput.value.trim() + '@floodfacts.com';
-    const password = passwordInput.value.trim();
-
-    if (!email || !password) {
-        alert('Please enter both username and password.');
-        return;
-    }
-
-    try {
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-        
-        await user.updateProfile({
-            displayName: usernameInput.value.trim()
-        });
-        
-        window.location.href = 'index.html';
-    } catch (error) {
-        if (error.code === 'auth/user-not-found') {
-            try {
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                const user = userCredential.user;
-                
-                await user.updateProfile({
-                    displayName: usernameInput.value.trim()
-                });
-                
-                await db.collection('users').doc(user.uid).set({
-                    username: usernameInput.value.trim(),
-                    email: email,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    quizScores: [],
-                    checklistProgress: {}
-                });
-                
-                window.location.href = 'index.html';
-            } catch (createError) {
-                alert('Error creating account: ' + createError.message);
-            }
-        } else {
-            alert('Login error: ' + error.message);
-        }
-    }
-};
-
 function initChecklist({ itemSelector, countId, barId, storageSuffix }) {
     const items = document.querySelectorAll(itemSelector);
     const countEl = document.getElementById(countId);
@@ -246,6 +202,7 @@ function initChecklist({ itemSelector, countId, barId, storageSuffix }) {
         countEl.textContent = checkedCount;
         barEl.style.width = `${progressPercentage}%`;
         barEl.setAttribute('aria-valuenow', checkedCount);
+        barEl.setAttribute('aria-valuemax', totalCount);
 
         const auth = getAuth();
         const db = getFirestore();
@@ -479,21 +436,53 @@ function initStories() {
 
     function renderStories(stories) {
         if (!stories.length) {
-            storiesList.innerHTML = '<p class="text-muted text-center">No stories shared yet. Be the first to share your experience.</p>';
+            const emptyMessage = document.createElement('p');
+            emptyMessage.className = 'text-muted text-center';
+            emptyMessage.textContent = 'No stories shared yet. Be the first to share your experience.';
+            storiesList.replaceChildren(emptyMessage);
             return;
         }
-        storiesList.innerHTML = stories.map(story => {
-            const sev = story.severity || 'moderate';
-            const sevLabel = sev.charAt(0).toUpperCase() + sev.slice(1);
-            return `
-            <div class="story-card card shadow-sm mb-3 p-3">
-                <div class="severity-pill"><span class="severity-badge severity-${sev}"><i class="fas fa-exclamation-triangle"></i> ${sevLabel}</span></div>
-                <h5>${story.name || 'Community Member'}</h5>
-                <small><i class="fas fa-map-marker-alt"></i> ${story.location}</small>
-                <small class="d-block"><i class="fas fa-clock"></i> ${new Date(story.submittedAt?.toDate?.() || story.submittedAt).toLocaleDateString()}</small>
-                <p class="mt-3 mb-0">${story.story}</p>
-            </div>
-        `}).join('');
+        const storyElements = stories.map(story => {
+            const severity = ['critical', 'severe', 'moderate'].includes(story.severity)
+                ? story.severity
+                : 'moderate';
+            const severityLabel = severity.charAt(0).toUpperCase() + severity.slice(1);
+            const card = document.createElement('div');
+            card.className = 'story-card card shadow-sm mb-3 p-3';
+
+            const severityPill = document.createElement('div');
+            severityPill.className = 'severity-pill';
+            const severityBadge = document.createElement('span');
+            severityBadge.className = `severity-badge severity-${severity}`;
+            const severityIcon = document.createElement('i');
+            severityIcon.className = 'fas fa-exclamation-triangle';
+            severityIcon.setAttribute('aria-hidden', 'true');
+            severityBadge.append(severityIcon, ` ${severityLabel}`);
+            severityPill.append(severityBadge);
+
+            const name = document.createElement('h5');
+            name.textContent = story.name || 'Community Member';
+            const location = document.createElement('small');
+            const locationIcon = document.createElement('i');
+            locationIcon.className = 'fas fa-map-marker-alt';
+            locationIcon.setAttribute('aria-hidden', 'true');
+            location.append(locationIcon, ` ${story.location || 'Location not provided'}`);
+            const submittedAt = document.createElement('small');
+            submittedAt.className = 'd-block';
+            const dateIcon = document.createElement('i');
+            dateIcon.className = 'fas fa-clock';
+            dateIcon.setAttribute('aria-hidden', 'true');
+            const rawDate = story.submittedAt?.toDate?.() || story.submittedAt;
+            const date = rawDate ? new Date(rawDate).toLocaleDateString() : 'Date unavailable';
+            submittedAt.append(dateIcon, ` ${date}`);
+            const storyText = document.createElement('p');
+            storyText.className = 'mt-3 mb-0';
+            storyText.textContent = story.story || '';
+
+            card.append(severityPill, name, location, submittedAt, storyText);
+            return card;
+        });
+        storiesList.replaceChildren(...storyElements);
     }
 
     function toggleFormState(loggedIn, username) {
@@ -568,6 +557,12 @@ function initStories() {
             return;
         }
 
+        if (location.length > 100 || storyText.length > 2000) {
+            alert('Location must be 100 characters or fewer, and your story must be 2,000 characters or fewer.');
+            isSubmittingStory = false;
+            return;
+        }
+
         // Disable the form during submission
         const submitButton = storyForm.querySelector('button[type="submit"]');
         const originalText = submitButton.innerHTML;
@@ -620,7 +615,13 @@ function initStories() {
                 if (!sev) return;
                 storySeverityInput.value = sev;
                 const label = sev.charAt(0).toUpperCase() + sev.slice(1);
-                selectedSeverityEl.innerHTML = `<span class="severity-badge severity-${sev}"><i class="fas fa-exclamation-triangle"></i> ${label}</span>`;
+                const badge = document.createElement('span');
+                badge.className = `severity-badge severity-${sev}`;
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-exclamation-triangle';
+                icon.setAttribute('aria-hidden', 'true');
+                badge.append(icon, ` ${label}`);
+                selectedSeverityEl.replaceChildren(badge);
             });
         });
     }
@@ -633,35 +634,7 @@ function initStories() {
     loadStories();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initSmoothScroll();
-    displayWelcomeMessage();
-    highlightActiveNav();
-    initLoginLink();
-    initLoginForm();
-    initChecklist({
-        itemSelector: '.checklist-item',
-        countId: 'checked-count',
-        barId: 'progress-bar',
-        storageSuffix: 'before'
-    });
-    initChecklist({
-        itemSelector: '.during-checklist-item',
-        countId: 'during-checked-count',
-        barId: 'during-progress-bar',
-        storageSuffix: 'during'
-    });
-    initQuiz();
-    initStories();
-});
-
-const auth = getAuth();
-auth.onAuthStateChanged((user) => {
-    displayWelcomeMessage();
-    initLoginLink();
-});
-
-// Add this function to handle registration
+// Handle registration
 window.handleRegister = async function handleRegister(event) {
     event.preventDefault();
     const auth = getAuth();
@@ -740,7 +713,6 @@ window.handleRegister = async function handleRegister(event) {
     }
 };
 
-// Add registration form initialization
 function initRegistrationForm() {
     const registerForm = document.getElementById('register-form');
     if (!registerForm) return;
@@ -764,12 +736,9 @@ function initRegistrationForm() {
     }
 }
 
-// Update the login function to use email instead of username
 window.handleLogin = async function handleLogin(event) {
     event.preventDefault();
     const auth = getAuth();
-    const db = getFirestore();
-    
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     
@@ -784,8 +753,7 @@ window.handleLogin = async function handleLogin(event) {
     }
 
     try {
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        const user = userCredential.user;
+        await auth.signInWithEmailAndPassword(email, password);
         
         window.location.href = 'index.html';
     } catch (error) {
@@ -803,14 +771,13 @@ window.handleLogin = async function handleLogin(event) {
     }
 };
 
-// Update the DOMContentLoaded event to include registration form
 document.addEventListener('DOMContentLoaded', () => {
     initSmoothScroll();
     displayWelcomeMessage();
     highlightActiveNav();
     initLoginLink();
     initLoginForm();
-    initRegistrationForm(); // Add this line
+    initRegistrationForm();
     initChecklist({
         itemSelector: '.checklist-item',
         countId: 'checked-count',
